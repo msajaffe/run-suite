@@ -1,0 +1,70 @@
+#!/bin/bash
+#check number of command line args
+if [ $# -ne 2 ]; then
+        echo Error: Incorrect number of command line arguments
+        exit 5
+        #error code 5 corresponding to inorrect number of command line arugments
+fi
+check () {
+        t=$1
+        pr=$2
+        tmp=`mktemp`
+        f=`ls | egrep "${t}\.arg" | wc -w`
+	if [ $f -eq 0 ]; then
+		./$pr<${t}.in>$tmp
+	else 
+		./${pr} $t.args < $t.in > ${tmp}
+        fi
+	if diff $tmp ${t}.out >/dev/null ; then
+                rm $tmp
+                continue
+        else
+                echo Test failed: $t
+                echo Input:
+                echo `cat ${t}.in`
+                echo Expected:
+                echo `cat ${t}.out`
+                echo Actual:
+                echo `cat $tmp`
+                rm $tmp
+        fi
+}
+for test in `cat "$1"`; do
+x=`ls | egrep "${test}\.in" | wc -w`
+y=`ls | egrep "${test}\.out"| wc -w`
+        if [ $x -ne $y ]; then
+                if [ $x -gt $y ]; then
+                        echo Error: Missing ${test}.out file
+                        exit 1
+                        #error code 1 corresponding to missing input file
+                else
+                        echo Error: Missing ${test}.in file
+                        exit 2
+                        #error code 2 corresponding to missing output file
+                fi
+        elif [ $x -eq 0 ]; then
+                echo Error: Missing ${test}.in and ${test}.out files
+                exit 3
+                #error code 3 corresponding to missing output and input files
+        else
+                z=`ls -l | egrep "^....r.*${test}.(in|out)$"| wc -l`
+                a=`ls -l | egrep "^....r.*${test}.in$"| wc -l`
+                b=`ls -l | egrep "^....r.*${test}.out$"| wc -l`
+                if [ $z -eq 2 ]; then
+                        check $test $2
+                elif [ $z -eq 0 ]; then
+                        echo Error: Both ${test}.in and ${test}.out are unreadable.
+                        exit 4
+                        #error code 4 corresponding to unreadable input and output files
+                elif [ $a -eq 0 ]; then
+                        echo Error: ${test}.in is unreadable
+                        exit 6
+                        #error code 6 correspons to unreadable input file
+                elif [ $b -eq 0 ]; then
+                        echo Error: ${test}.out is unreadable
+                        exit 7
+                        #error code 7 corresponds to unreadable output file
+                fi
+        fi
+
+done
